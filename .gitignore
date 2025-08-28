@@ -211,4 +211,5 @@ __marimo__/
 datasets/
 checkpoints/
 notebooks/
-kaggle/
+kaggle/*
+!kaggle/README.md
