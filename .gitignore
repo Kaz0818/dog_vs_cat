@@ -208,5 +208,5 @@ marimo/_lsp/
 __marimo__/
 
 # Pytorch
-*/datasets
+datasets/*
 checkpoints/
