@@ -13,6 +13,13 @@ from src.dog_vs_cat.dataset_data_loader.make_dataloader import AlbumentationsIma
 from src.dog_vs_cat.engine.trainer import Trainer
 from src.dog_vs_cat.models.build_model import build_model
 from src.dog_vs_cat.optimizers.build_optimizer import build_optimizer
+from src.dog_vs_cat.visualization.visualizer import Visualizer
+
+device = (
+    torch.device("mps") if torch.backends.mps.is_available()
+    else torch.device("cuda") if torch.cuda.is_available()
+    else torch.device("cpu")
+)
 
 # 1) YAMLをロードしてPythonのdictに変換
 with open("configs/config.yaml", "r") as f:
@@ -74,6 +81,25 @@ def main():
 )
     history = trainer.train()
 
+    vis = Visualizer()
+    vis.metrics_plot(
+        history["train_loss"], history["val_loss"],
+        history["train_acc"], history["val_acc"]
+    )
+    
+    vis.plot_confusion_matrix_display(
+        model, val_loader, class_names, device,
+        cm_save_path="results/confusion_matrix.png"
+    )
+    
+    vis.plot_misclassified_images(
+        model, val_loader, class_names, device, max_images=16
+    )
+    
+    vis.result_classification_report(
+        model, val_loader, class_names, device
+    )
+    
     # 学習結果を保存
     run_dir = Path("runs") / datetime.datetime.now(ZoneInfo("Asia/Tokyo")).strftime("%Y%m%d_%H%M%S") \
               / f"{config['model_name']}_bs{config['batch_size']}_lr{config['learning_rate']}_ep{config['epochs']}"
@@ -84,7 +110,7 @@ def main():
     
     metrics = {
         "val_acc": float(history['val_acc'][-1]),
-        "val_loss": float(history['val_acc'][-1]),
+        "val_loss": float(history['val_loss'][-1]),
         "train_acc": float(history['train_acc'][-1]),
         "train_loss": float(history['train_loss'][-1]),
     }
