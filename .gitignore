@@ -213,3 +213,6 @@ checkpoints/
 notebooks/
 kaggle/*
 !kaggle/README.md
+runs/
+datasets/
+kaggle/
