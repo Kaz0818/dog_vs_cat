@@ -73,27 +73,36 @@ def main():
         weight_decay=float(config.get("weight_decay", 1e-4)),
     )
     
+    ts = datetime.datetime.now(ZoneInfo("Asia/Tokyo")).strftime("%Y%m%d_%H%M%S")
+    run_dir = Path("runs") / f"{ts}_{config['model_name']}_bs{config['batch_size']}_lr{config['learning_rate']}_ep{config['epochs']}"
+    (run_dir / "checkpoints").mkdir(parents=True, exist_ok=True)
+    (run_dir / "results").mkdir(parents=True, exist_ok=True)
+    
     # 学習ループ
     trainer = Trainer(model,
                       train_loader,
                       val_loader,
                       criterion,
                       optimizer, config['epochs'],
-                      device=device
+                      device=device,
+                      checkpoint_dir=str(run_dir / "checkpoints" ),
 )
     history = trainer.train()
     
-    ts = datetime.datetime.now(ZoneInfo("Asia/Tokyo")).strftime("%Y%m%d_%H%M%S")
-    run_dir = Path("runs") / f"{ts}_{config['model_name']}_bs{config['batch_size']}_lr{config['learning_rate']}_ep{config['epochs']}"
-    (run_dir / "checkpoints").mkdir(parents=True, exist_ok=True)
-    (run_dir / "results").mkdir(parents=True, exist_ok=True)
-    
     shutil.copy("configs/config.yaml", run_dir / "config.yaml")
+    with open(run_dir / "metrics.json", "w") as f:
+        json.dump({
+            "val_acc": float(history['val_acc'][-1]),
+            "val_loss": float(history['val_loss'][-1]),
+            "train_acc": float(history['train_acc'][-1]),
+            "train_loss": float(history['train_loss'][-1]),
+        }, f, indent=2)
     
     vis = Visualizer()
     vis.metrics_plot(
         history["train_loss"], history["val_loss"],
-        history["train_acc"], history["val_acc"]
+        history["train_acc"], history["val_acc"],
+        save_path=run_dir / "results" / "train_val_loss_plot.png"
     )
     
     vis.plot_confusion_matrix_display(
@@ -102,21 +111,14 @@ def main():
     )
     
     vis.plot_misclassified_images(
-        model, val_loader, class_names, device, max_images=16
+        model, val_loader, class_names, device,
+        save_path=run_dir / "results"/ "misclassified_images.png",
+        max_images=16
     )
     
     vis.result_classification_report(
         model, val_loader, class_names, device
     )
-    
-    metrics = {
-        "val_acc": float(history['val_acc'][-1]),
-        "val_loss": float(history['val_loss'][-1]),
-        "train_acc": float(history['train_acc'][-1]),
-        "train_loss": float(history['train_loss'][-1]),
-    }
-    with open(run_dir / "metrics.json", "w") as f:
-        json.dump(metrics, f, indent=2)
         
 
 if __name__ == "__main__":
