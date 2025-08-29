@@ -1,5 +1,6 @@
 import os
 import io
+import math
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
@@ -8,8 +9,23 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classifica
 from tqdm import tqdm 
 
 class Visualizer: 
-    def __init__(self, writer=None):
+    def __init__(self, writer=None, mean=(0.485,0.456,0.406), std=(0.229,0.224,0.225)):
         self.writer = writer
+        self.mean = mean
+        self.std = std
+
+    def _denormalize(self, img: torch.Tensor, mean, std) -> torch.Tensor:
+        """
+        img: [C,H,W] (0〜1で標準化済みのテンソル。ToTensorV2後)
+        mean, std: 長さ3の(リスト/タプル)
+        戻り値: [C,H,W] (0〜1範囲にクリップ)
+        """
+        if not torch.is_tensor(img):
+            img = torch.tensor(img)
+        mean = torch.tensor(mean, dtype=img.dtype, device=img.device).view(-1,1,1)
+        std  = torch.tensor(std,  dtype=img.dtype, device=img.device).view(-1,1,1)
+        img = img * std + mean
+        return img.clamp(0, 1)
         
 # ---------Train Loss VS Validation Loss Plot--------------------------
     def metrics_plot(self, train_losses, val_losses, train_accuracies, val_accuracies):
@@ -70,20 +86,12 @@ class Visualizer:
             step = epoch if epoch is not None else 0
             self.writer.add_image(tag, image_tensor, global_step=step)
         
-        if cm_save_path:
-            os.makedirs('results', exist_ok=True)
-            
-            if not self.writer: 
-                buf = io.BytesIO()
-                plt.savefig(buf, format='png')
-                buf.seek(0)
-                image = Image.open(buf).convert("RGB")
-
-            image.save(cm_save_path)
+        if cm_save_path:            
+            plt.savefig(cm_save_path)
             print(f"[INFO] Saved confusion matrix image to {cm_save_path}")
         else:
             plt.show()
-    
+            
         plt.close()
         
     # ---------------検証データで間違えたものだけPlotする=------------------------
@@ -91,7 +99,7 @@ class Visualizer:
                                   max_images=25):
         model.to(device)
         model.eval()
-        misclassified_images, misclassified_preds, correct_labels = [], [], []
+        mis_imgs, mis_preds, mis_trues = [], [], []
     
         with torch.no_grad():
             for X_val, y_val in tqdm(dataloader, desc="Finding Misclassified", leave=False):
@@ -99,29 +107,35 @@ class Visualizer:
                 preds = model(X_val).argmax(dim=1)
                 wrong = preds != y_val
                 if wrong.any():
-                    misclassified_images.extend(X_val[wrong].cpu())
-                    misclassified_preds.extend(preds[wrong].cpu())
-                    correct_labels.extend(y_val[wrong].cpu())
-                    if len(misclassified_images) >= max_images:
+                    mis_imgs.extend(X_val[wrong].cpu())
+                    mis_preds.extend(preds[wrong].cpu())
+                    mis_trues.extend(y_val[wrong].cpu())
+                    if len(mis_imgs) >= max_images:
                         break
     
-        n_images = min(len(misclassified_images), max_images)
+        n_images = min(len(mis_imgs), max_images)
         if n_images == 0:
             print("[INFO] No misclassified images found.")
             return 
-            
-        plt.figure(figsize=(12, 12))
-        n_rowcol = int(n_images ** 0.5) + 1
+        
+        cols = int(math.sqrt(n_images)) + 1
+        rows = int(math.ceil(n_images / cols))
+        plt.figure(figsize=(3.2*cols, 3.2*rows))
+        
         for i in range(n_images):
-            image = misclassified_images[i]
-            pred_label = misclassified_preds[i].item()
-            true_label = correct_labels[i].item()
-            plt.subplot(n_rowcol, n_rowcol, i + 1)
-            img = image.permute(1, 2, 0)
-            plt.imshow(img.squeeze(), cmap='gray' if img.shape[2] == 1 else None)
-            title = f"Pred: {class_names[pred_label] if class_names else pred_label}\nTrue: {class_names[true_label] if class_names else true_label}"
-            plt.title(title)
-            plt.axis('off')
+            img = self._denormalize(mis_imgs[i], self.mean, self.std).permute(1, 2, 0).numpy()
+            
+            pred = mis_preds[i].item()
+            true = mis_trues[i].item()
+            
+            ax = plt.subplot(cols, rows, i + 1)
+            if img.shape[2] == 1:
+                ax.imshow(img[..., 0], cmap='gray')
+            else:
+                ax.imshow(img)
+            ax.set_title(f"Pred: {class_names[pred]} / True: {class_names[true]}", fontsize=9)
+            ax.axis('off')
+            
         plt.tight_layout()
         plt.show() 
         plt.close()

@@ -42,6 +42,7 @@ def worker_init_fn(worker_id: int):
 
 
 def main():
+    print(f"device: {device}")
     # 1) シード固定（YAMLは random_seed で統一）
     seed_everything(config["random_state"])
 
@@ -77,10 +78,18 @@ def main():
                       train_loader,
                       val_loader,
                       criterion,
-                      optimizer, config['epochs']
+                      optimizer, config['epochs'],
+                      device=device
 )
     history = trainer.train()
-
+    
+    ts = datetime.datetime.now(ZoneInfo("Asia/Tokyo")).strftime("%Y%m%d_%H%M%S")
+    run_dir = Path("runs") / f"{ts}_{config['model_name']}_bs{config['batch_size']}_lr{config['learning_rate']}_ep{config['epochs']}"
+    (run_dir / "checkpoints").mkdir(parents=True, exist_ok=True)
+    (run_dir / "results").mkdir(parents=True, exist_ok=True)
+    
+    shutil.copy("configs/config.yaml", run_dir / "config.yaml")
+    
     vis = Visualizer()
     vis.metrics_plot(
         history["train_loss"], history["val_loss"],
@@ -89,7 +98,7 @@ def main():
     
     vis.plot_confusion_matrix_display(
         model, val_loader, class_names, device,
-        cm_save_path="results/confusion_matrix.png"
+        cm_save_path=run_dir / "results" / "confusion_matrix.png"
     )
     
     vis.plot_misclassified_images(
@@ -99,14 +108,6 @@ def main():
     vis.result_classification_report(
         model, val_loader, class_names, device
     )
-    
-    # 学習結果を保存
-    run_dir = Path("runs") / datetime.datetime.now(ZoneInfo("Asia/Tokyo")).strftime("%Y%m%d_%H%M%S") \
-              / f"{config['model_name']}_bs{config['batch_size']}_lr{config['learning_rate']}_ep{config['epochs']}"
-    (run_dir / "checkpoints").mkdir(parents=True, exist_ok=True)
-    (run_dir / "figures").mkdir(parents=True, exist_ok=True)
-    
-    shutil.copy("configs/config.yaml", run_dir / "config.yaml")
     
     metrics = {
         "val_acc": float(history['val_acc'][-1]),
