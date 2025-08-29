@@ -28,7 +28,7 @@ class Visualizer:
         return img.clamp(0, 1)
         
 # ---------Train Loss VS Validation Loss Plot--------------------------
-    def metrics_plot(self, train_losses, val_losses, train_accuracies, val_accuracies):
+    def metrics_plot(self, train_losses, val_losses, train_accuracies, val_accuracies, save_path):
         fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 5))
         axes[0].plot(train_losses, label='Train', lw=3)
         axes[0].plot(val_losses, label='Val', lw=3)
@@ -43,6 +43,7 @@ class Visualizer:
         axes[1].legend()
         axes[1].set_title('Accuracy Curve')
         plt.tight_layout()
+        plt.savefig(save_path)
         plt.show()
 
     
@@ -95,7 +96,7 @@ class Visualizer:
         plt.close()
         
     # ---------------検証データで間違えたものだけPlotする=------------------------
-    def plot_misclassified_images(self, model, dataloader, class_names, device, # model, dataloader, device を追加
+    def plot_misclassified_images(self, model, dataloader, class_names, device, save_path, # model, dataloader, device を追加
                                   max_images=25):
         model.to(device)
         model.eval()
@@ -137,6 +138,7 @@ class Visualizer:
             ax.axis('off')
             
         plt.tight_layout()
+        plt.savefig(save_path)
         plt.show() 
         plt.close()
         
