@@ -108,17 +108,18 @@ def main():
     
     vis.plot_confusion_matrix_display(
         model, val_loader, class_names, device,
-        cm_save_path=run_dir / "results" / "confusion_matrix.png"
+        cm_save_path=str(run_dir / "results" / "confusion_matrix.png")
     )
     
     vis.plot_misclassified_images(
         model, val_loader, class_names, device,
-        save_path=run_dir / "results"/ "misclassified_images.png",
+        save_path=str(run_dir / "results"/ "misclassified_images.png"),
         max_images=16
     )
     
     vis.result_classification_report(
-        model, val_loader, class_names, device
+        model, val_loader, class_names, device,
+        save_path=str(run_dir / "results" / "classification_report.txt")
     )
         
         
