@@ -145,7 +145,7 @@ class Visualizer:
 
 # ---------------Classification Report ------------------------
 
-    def result_classification_report(self, model, data_loader, target_names, device):
+    def result_classification_report(self, model, data_loader, target_names, device, save_path=None):
         """ 
         Args:
             model: 学習済みのmodel
@@ -177,4 +177,13 @@ class Visualizer:
             target_names = target_names
         else:
             target_names = None  
-        print(classification_report(y_true, y_pred, target_names=target_names, digits=4, zero_division=0))
+        report = classification_report(y_true, y_pred, target_names=target_names, digits=4, zero_division=0)
+        print(report)       
+        
+        if save_path:
+            with open(save_path, "w") as f:
+                f.write(report)
+            print(f"[INFO] classification_report saved to {save_path}")
+            
+            
+            
