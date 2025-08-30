@@ -14,6 +14,7 @@ from src.dog_vs_cat.engine.trainer import Trainer
 from src.dog_vs_cat.models.build_model import build_model
 from src.dog_vs_cat.optimizers.build_optimizer import build_optimizer
 from src.dog_vs_cat.visualization.visualizer import Visualizer
+from src.dog_vs_cat.grad_cam.grad_cam import GradCAMVisualizer
 
 device = (
     torch.device("mps") if torch.backends.mps.is_available()
@@ -43,7 +44,7 @@ def worker_init_fn(worker_id: int):
 
 def main():
     print(f"device: {device}")
-    # 1) シード固定（YAMLは random_seed で統一）
+    # 1) シード固定（YAMLは random_seed で統一
     seed_everything(config["random_state"])
 
     # 2) 変換
@@ -120,6 +121,25 @@ def main():
         model, val_loader, class_names, device
     )
         
+        
+    grad_cam = GradCAMVisualizer(
+        model, class_names, device
+    )
+    
+    grad_cam.plot_random_samples(
+        val_loader,
+        num_images=16,
+        cols=4,
+        grid_save_path=str(run_dir / "results" / "gradcam_random.png"),
+    )
+    
+    grad_cam.plot_misclassified_samples(
+        val_loader,
+        max_images=16,
+        cols=4,
+        grid_save_path=str(run_dir / "results" / "gradcam_misclassified.png")
+    )
+
 
 if __name__ == "__main__":
     main()
